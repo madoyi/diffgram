@@ -1,5 +1,4 @@
 from shared.database.task.task import Task, TASK_STATUSES
-from shared.utils.task.task_new import create_review_sub_task
 from shared.database.task.task_event import TaskEvent
 from shared.regular import regular_methods, regular_log
 from dataclasses import dataclass
@@ -45,11 +44,16 @@ class Task_Update():
         return
 
     def emit_task_event_based_on_status(self, old_status, task):
+        print('TESTT', task.status, old_status)
         if task.status == 'complete':
             if old_status != 'completed':
                 assignees = task.get_assignees(session = self.session)
+                if old_status == 'in_review':
+                    TaskEvent.generate_task_review_complete_event(self.session, task, self.member)
                 for user in assignees:
                     TaskEvent.generate_task_completion_event(self.session, task, self.member, task_assignee = user)
+                if not assignees:
+                    TaskEvent.generate_task_completion_event(self.session, task, self.member, task_assignee = self.member.user)
 
         if task.status == 'in_progress':
             if old_status != 'in_progress':
@@ -62,7 +66,8 @@ class Task_Update():
                 assignees = task.get_assignees(session = self.session)
                 for user in assignees:
                     TaskEvent.generate_task_request_change_event(self.session, task, self.member, task_assignee = user)
-
+                if not assignees:
+                    TaskEvent.generate_task_request_change_event(self.session, task, self.member)
     def update_files_count(self):
         result, log = WorkingDirFileLink.file_link_update(
             session = self.session,
@@ -102,13 +107,5 @@ class Task_Update():
             return
 
         self.task.status = TASK_STATUSES['deferred']
-
-        review_task = create_review_sub_task(
-            session = self.session,
-            job = self.task.job,
-            root_task = self.task,
-            guide_id = self.task.job.guide_review_id,
-            create_new_file = False
-        )
 
         self.log['success'] = True

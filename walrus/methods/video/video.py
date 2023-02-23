@@ -219,7 +219,7 @@ class New_video():
         num_cores = os.cpu_count()
         logger.info(f"Num Core to write video: {num_cores}")
 
-        check_and_wait_for_memory(memory_limit_float=75.0)
+        check_and_wait_for_memory(memory_limit_float=85.0)
 
         if settings.PROCESS_MEDIA_TRY_BLOCK_ON is True:
             try:
@@ -299,6 +299,7 @@ class New_video():
             parent_input_id = input.parent_input_id,
             parent_video_split_duration = parent_video_split_duration,
             file_metadata = input.file_metadata,
+            ordinal = input.ordinal if hasattr(input, "ordinal") else 0,
         )
 
         if self.input.frame_packet_map:

@@ -50,6 +50,7 @@ def default_url_regenerate(session: Session,
     :return:
     """
     log = regular_log.default()
+    #print('URL REGENERATE', new_offset_in_seconds)
     try:
         blob_object.url_signed = data_tools.build_secure_url(blob_object.url_signed_blob_path, new_offset_in_seconds)
         blob_object.url_signed_expiry = time.time() + new_offset_in_seconds
@@ -62,7 +63,6 @@ def default_url_regenerate(session: Session,
         if type(blob_object) == Image and blob_object.url_signed_thumb_blob_path:
             blob_object.url_signed_thumb = data_tools.build_secure_url(blob_object.url_signed_thumb_blob_path,
                                                                        new_offset_in_seconds)
-            blob_object.url_ = time.time() + new_offset_in_seconds
         if type(blob_object) == TextFile and blob_object.tokens_url_signed_blob_path:
             blob_object.tokens_url_signed = data_tools.build_secure_url(blob_object.tokens_url_signed_blob_path,
                                                                         new_offset_in_seconds)
@@ -277,7 +277,8 @@ def connection_url_regenerate(session: Session,
                               bucket_name: str,
                               new_offset_in_seconds: int,
                               access_token: str = None,
-                              reference_file: File = None) -> [DiffgramBlobObjectType, dict]:
+                              reference_file: File = None,
+                              create_thumbnails: bool = True) -> [DiffgramBlobObjectType, dict]:
     """
         Regenerates signed url from the given connection ID, bucket and blob path.
     :param session:
@@ -317,20 +318,23 @@ def connection_url_regenerate(session: Session,
     blob_object.url_signed = signed_url
 
     # Extra assets (Depending on type)
-    if type(blob_object) == Image:
-        blob_object, url = generate_thumbnails_for_image(
-            session = session,
-            log = log,
-            blob_object = blob_object,
-            params = params,
-            client = client,
-            connection_id = connection_id,
-            bucket_name = bucket_name,
-            new_offset_in_seconds = new_offset_in_seconds,
-            member = member,
-            access_token = None,
-            reference_file = reference_file
-        )
+    if type(blob_object) == Image and create_thumbnails:
+        blob_object.url_signed_thumb = signed_url
+        # Temp removal to re use original image instead of building thumbnail
+
+        # blob_object, url = generate_thumbnails_for_image(
+        #     session = session,
+        #     log = log,
+        #     blob_object = blob_object,
+        #     params = params,
+        #     client = client,
+        #     connection_id = connection_id,
+        #     bucket_name = bucket_name,
+        #     new_offset_in_seconds = new_offset_in_seconds,
+        #     member = member,
+        #     access_token = None,
+        #     reference_file = reference_file
+        # )
     if type(blob_object) == TextFile and blob_object.tokens_url_signed_blob_path:
         blob_object, log = generate_text_token_url(
             session = session,
@@ -345,10 +349,11 @@ def connection_url_regenerate(session: Session,
 
 def blob_regenerate_url(blob_object: DiffgramBlobObjectType,
                         session: Session,
-                        connection_id = None,
-                        bucket_name = None,
-                        access_token = None,
-                        reference_file: File = None) -> [str, dict]:
+                        connection_id: int = None,
+                        bucket_name: str = None,
+                        access_token: str = None,
+                        reference_file: File = None,
+                        create_thumbnails: bool = True) -> [str, dict]:
     """
         Regenerates the signed url of the given blob object.
     :param blob_object:
@@ -365,7 +370,6 @@ def blob_regenerate_url(blob_object: DiffgramBlobObjectType,
         bucket_name = bucket_name)
 
     should_regenerate, new_offset_in_seconds = data_tools.determine_if_should_regenerate_url(blob_object, session)
-
     if should_regenerate is not True and strategy != 'connection':
         return
 
@@ -386,7 +390,8 @@ def blob_regenerate_url(blob_object: DiffgramBlobObjectType,
             bucket_name = bucket_name,
             new_offset_in_seconds = new_offset_in_seconds,
             reference_file = reference_file,
-            access_token = access_token
+            access_token = access_token,
+            create_thumbnails = create_thumbnails
         )
 
     if regular_log.log_has_error(log):

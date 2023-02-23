@@ -199,8 +199,8 @@
   import tag_select from '@/components/tag/tag_select.vue'
   import label_schema_selector from "../label/label_schema_selector.vue"
   import attribute_select from "../attribute/attribute_select.vue"
-import { attribute_group_list } from "../../services/attributesService";
-import { get_file_signed_url } from "../../services/fileServices";
+import { attribute_group_list } from "../../services/attributesService.ts";
+import { get_file_signed_url } from "../../services/fileServices.ts";
 import dataset_selector from "../attached/global_dataset_selector.vue"
 
 export default Vue.extend({
@@ -230,6 +230,8 @@ export default Vue.extend({
     }
     if (!this.metadata.directory_id) {
       this.metadata.directory_id = this.$props.directory.directory_id;
+
+      if (this.$props.directory) this.datasets_selected.push(this.$props.directory)
 
       this.selected_dir = this.$props.directory;
     }
@@ -326,11 +328,9 @@ export default Vue.extend({
   },
   methods: {
     key_down: function (event) {
-      console.log('key down')
       this.set_control_key(event)
     },
     key_up: function (event) {
-      console.log('key uppp')
       this.set_control_key(event)
     },
     set_control_key: function (event) {

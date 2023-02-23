@@ -261,7 +261,7 @@
 
 
 
-                <!-- Disable changes for Jan 2019 release -->
+                <!-- Disabled -->
                 <v-select :items="permission_list"
                           v-model="job.permission"
                           label="Visibility"
@@ -316,7 +316,7 @@
   import label_select_only from '../../label/label_select_only.vue'
   import label_manager_dialog from '../../label/label_manager_dialog.vue'
   import {route_errors} from '../../regular/regular_error_handling'
-  import userscript_select from '../../annotation/userscript/userscript_select.vue'
+  import userscript_select from '../../annotation/image_and_video_annotation/userscript/userscript_select.vue'
   import Vue from "vue";
 
 

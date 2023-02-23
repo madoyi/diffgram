@@ -13,7 +13,6 @@
       data-cy="canvas"
       v-canvas:cb="onRendered"
       :id="canvas_id"
-      :canvas_transform="canvas_transform"
       :height="canvas_height_scaled"
       :width="canvas_width_scaled">
       <slot :ord="3" name="instance_drawer" :canvas_transform="canvas_transform"></slot>
@@ -23,6 +22,7 @@
         :background="bg_color"
         ref="background"
         :image="image_bg"
+        :degrees="rotation_degrees"
         :refresh="refresh"
         :canvas_width="canvas_width"
         :canvas_height="canvas_height"
@@ -101,6 +101,9 @@
       },
       text_color: {
         default: "#000000"
+      },
+      rotation_degrees: {
+        default: 0
       },
       bg_color: {
         default: undefined
@@ -229,7 +232,7 @@
       this.canvas_ctx = this.canvas_element.getContext('2d');
 
       this.update_canvas();
-
+      this.$emit('canvas_element_ready', this.canvas_element)
     },
 
     beforeDestroy() {

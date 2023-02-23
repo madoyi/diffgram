@@ -97,7 +97,7 @@
               <div class="d-flex">
                 <div style="width: 75px">
                   <v-chip 
-                    v-if="is_super_admin"
+                    v-if="is_super_admin || show_id"
                     x-small 
                   >
                     ID: {{ data.item.directory_id }}
@@ -117,7 +117,7 @@
 
           <template v-slot:selection="data">
             <v-chip  
-              v-if="is_super_admin"
+              v-if="is_super_admin || show_id"
               x-small 
             >
               ID: {{ data.item.directory_id }}
@@ -224,6 +224,10 @@ export default Vue.extend({
       type: Boolean,
       default: false
     },
+    show_id: {
+      type: Boolean,
+      default: false
+    },
     dataset_list: {
       type: Array,
       default: () => []
@@ -257,7 +261,13 @@ export default Vue.extend({
     }
 
     if (this.set_from_id) {
-      this.current_directory = this.dataset_list_filtered.find((dataset:any) => dataset.directory_id === this.set_from_id)
+      const selected = this.dataset_list_filtered.find((dataset:any) => dataset.directory_id === this.set_from_id)
+
+      if (this.multiple) {
+        this.current_directory = [selected]
+      } else {
+        this.current_directory = selected
+      }
     }
 
     if(this.change_on_mount){

@@ -172,19 +172,28 @@
 
             <v-layout class="justify-center align-center">
               <v-btn-toggle color="secondary" v-model="toggle_global_attribute" @change="set_is_global($event, group)">
-                <v-btn>
+                <v-btn data-cy="instance-attribute-button">
                   <v-icon left color="primary" size="18">
                     mdi-brush
                   </v-icon>
                   Per Annotation (Default)
                 </v-btn>
 
-                <v-btn>
+                <v-btn data-cy="global-attribute-button">
                   <v-icon left color="primary" size="18">
                     mdi-file
                   </v-icon>
 
                    Per File
+
+                </v-btn>
+
+                <v-btn data-cy="global-compound-attribute-button">
+                  <v-icon left color="primary" size="18">
+                    mdi-file-table-box-multiple
+                  </v-icon>
+
+                  Per Root Compound File
 
                 </v-btn>
               </v-btn-toggle>
@@ -373,6 +382,9 @@
                       </v-layout>
                     </template>
                   </button_with_confirm>
+                  <v-chip class="ma-auto" x-small v-if="$store.state.user.settings.show_ids === true">
+                    ID: {{ item.id }}
+                  </v-chip>
                 </v-layout>
                 <v-layout @click="add_root_tree_item" v-else flexe>
                   Add new
@@ -539,7 +551,7 @@ import attribute_new_or_update from './attribute_new_or_update.vue';
 import { v4 as uuidv4 } from "uuid";
 import { TreeNode } from "../../helpers/tree_view/Node"
 import { construct_tree, find_all_relatives } from "../../helpers/tree_view/construct_tree"
-import { attribute_update_or_new } from "../../services/attributesService"
+import { attribute_update_or_new } from "../../services/attributesService.ts"
 import pLimit from 'p-limit';
 
 export default Vue.extend( {
@@ -632,7 +644,12 @@ export default Vue.extend( {
   methods: {
     set_global_attribute: function(){
       if(this.group.is_global){
-        this.toggle_global_attribute = 1
+        if(this.group.global_type === 'compound_file'){
+          this.toggle_global_attribute = 2
+        } else{
+          this.toggle_global_attribute = 1
+        }
+
       }
       else{
         this.toggle_global_attribute = 0
@@ -648,6 +665,10 @@ export default Vue.extend( {
     set_is_global: function(value, group){
       if(value === 1){
         group.is_global = true
+        group.global_type = 'file'
+      } else if(value === 2){
+        group.is_global = true
+        group.global_type = 'compound_file'
       }
       else{
         group.is_global = false

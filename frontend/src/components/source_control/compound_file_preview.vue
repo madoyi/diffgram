@@ -13,7 +13,6 @@
       :file_preview_width="file_preview_width"
     ></file_preview_details_card>
     <drawable_canvas
-
       v-if="child_files.length > 0 && image_bg"
       ref="drawable_canvas"
       :allow_zoom="false"
@@ -41,6 +40,14 @@
       />
 
     </drawable_canvas>
+    <div v-else
+         class="compound-file-container mb-2 d-flex flex-column truncate-text"
+         :style="`width: ${file_preview_width}px; height: ${file_preview_height}px;`">
+      <v-icon size="85">mdi-file</v-icon>
+      <h5 class="truncate-text " >
+        {{file.original_filename}}asdasdasdasd
+      </h5>
+    </div>
 
   </div>
 
@@ -134,9 +141,6 @@
     },
     watch: {
       hovered: function(new_val, old_val){
-        console.log(
-          new_val, 'aksjdlkasjdk'
-        )
         if(new_val){
           this.start_file_thumb_rotation()
         }
@@ -207,21 +211,17 @@
       set_bg: async function (newFile) {
         return new Promise((resolve, reject) => {
           if (!newFile) {
-            console.log('NO NEW FILE',newFile)
             this.image_bg = undefined;
             this.refresh = new Date();
             resolve();
           }
           else {
-            console.log('NO NEW FILE',newFile)
             if (newFile.image && newFile.image.url_signed) {
-              console.log('newFile.image.url_signed',newFile.image.url_signed)
               if(!newFile.html_image){
                 const image = new Image();
                 image.onload = () => {
                   this.image_bg = image;
                   this.refresh = new Date();
-                  console.log('RESOLVE', image)
                   image.onload = () => resolve(image)
                 }
                 image.src = newFile.image.url_signed;
@@ -256,6 +256,11 @@
 }
 .compound-file-container{
   position: relative;
+}
+.truncate-text{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .fade-box{
   background: rgba(0,0,0,0.4) !important;

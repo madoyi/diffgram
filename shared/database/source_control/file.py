@@ -178,6 +178,9 @@ class File(Base, Caching):
 
     parent_id = Column(BIGINT, ForeignKey('file.id'))  # Updated
 
+    # Ordinal is used to control order of child files in the context of a compound file.
+    ordinal = Column(BIGINT, default = 0)
+
     def previous(self, session):  # Legacy
         return session.query(File).filter(File.id == self.parent_id).first()
 
@@ -332,7 +335,8 @@ class File(Base, Caching):
             'connection_id': self.connection_id,
             'video_id': self.video_id,
             'video_parent_file_id': self.video_parent_file_id,
-            'count_instances_changed': self.count_instances_changed
+            'count_instances_changed': self.count_instances_changed,
+            'ordinal': self.ordinal
         }
 
     def get_signed_url(self, session):
@@ -381,12 +385,12 @@ class File(Base, Caching):
         ).all()
         return assets
 
-    def serialize_geospatial_assets(self, session, connection_id = None, bucket_name = None, regen_url = True):
+    def serialize_geospatial_assets(self, session, connection_id = None, bucket_name = None, regen_url = True, create_thumbnails: bool = True):
         assets_list = self.get_geo_assets(session)
         result = []
         for asset in assets_list:
             result.append(asset.serialize(session, connection_id = connection_id, bucket_name = bucket_name,
-                                          regen_url = regen_url))
+                                          regen_url = regen_url, create_thumbnails = create_thumbnails))
         return result
 
     def serialize_with_type(self, session = None, regen_url = True):
@@ -408,6 +412,7 @@ class File(Base, Caching):
                                                                bucket_name = self.bucket_name)
                 file['video']['bucket_name'] = self.bucket_name
         elif self.type == "text":
+            print('serialize_with_type', regen_url)
             if self.text_file:
                 file['text'] = self.text_file.serialize(session = session,
                                                         connection_id = self.connection_id,
@@ -782,7 +787,6 @@ class File(Base, Caching):
                     frame_number = instance.frame_number,
                     global_frame_number = instance.global_frame_number,
                     machine_made = instance.machine_made,
-                    fan_made = instance.fan_made,
                     points = instance.points,
                     soft_delete = instance.soft_delete,
                     center_x = instance.center_x,
@@ -878,7 +882,8 @@ class File(Base, Caching):
             input_id = None,
             parent_id = None,
             task = None,
-            file_metadata = None
+            file_metadata = None,
+            ordinal: int = None
             ):
         """
         "file_added" case
@@ -929,7 +934,8 @@ class File(Base, Caching):
             parent_id = parent_id,
             task = task,
             file_metadata = file_metadata,
-            text_tokenizer = text_tokenizer
+            text_tokenizer = text_tokenizer,
+            ordinal = ordinal
         )
 
         File.new_file_new_frame(file, video_parent_file)
@@ -1077,14 +1083,19 @@ class File(Base, Caching):
         return res
 
     @staticmethod
-    def get_by_name_and_directory(session, directory_id, file_name):
+    def get_by_name_and_directory(session, directory_id, file_name, with_deleted = True):
         from shared.database.source_control.working_dir import WorkingDirFileLink
         working_dir_sub_query = session.query(WorkingDirFileLink).filter(
             WorkingDirFileLink.working_dir_id == directory_id).subquery('working_dir_sub_query')
-
-        file = session.query(File).filter(
-            File.id == working_dir_sub_query.c.file_id,
-            File.original_filename == file_name).first()
+        if with_deleted:
+            file = session.query(File).filter(
+                File.id == working_dir_sub_query.c.file_id,
+                File.original_filename == file_name).first()
+        else:
+            file = session.query(File).filter(
+                File.id == working_dir_sub_query.c.file_id,
+                File.state != 'removed',
+                File.original_filename == file_name).first()
         return file
 
     @staticmethod

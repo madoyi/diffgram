@@ -1,6 +1,6 @@
 import Vuex from "vuex";
 import { shallowMount, createLocalVue } from "@vue/test-utils";
-import toolbar from "@/components/annotation/toolbar.vue";
+import toolbar from "@/components/annotation/image_and_video_annotation/toolbar.vue";
 
 const localVue = createLocalVue();
 localVue.use(Vuex);
@@ -21,6 +21,9 @@ describe("Annotation core toolbar test set", () => {
             user: {
               current: {
                 is_super_admin: true
+              },
+              settings:{
+                show_attribute_preview: false
               }
             },
             project: {

@@ -153,7 +153,7 @@
             v-if="group.kind === 'tree'"
           >
             <div style="padding: 5px">
-              <v-chip 
+              <v-chip
                 class="ma-1"
                 x-small
                 v-for="(name, index) in internal_selected_names"
@@ -193,10 +193,15 @@
               <template v-slot:prepend="{ item }">
                   <v-checkbox
                     :input-value="internal_selected.includes(item.id)"
-                    @change="tree_input(item)" 
-                    style="margin-top: 0" 
-                    hide-details 
+                    @change="tree_input(item)"
+                    style="margin-top: 0"
+                    hide-details
                   />
+              </template>
+              <template v-slot:append="{item}">
+                <v-chip x-small v-if="$store.state.user.settings.show_ids === true">
+                  ID: {{ item.id }}
+                </v-chip>
               </template>
             </v-treeview>
             </v-lazy>
@@ -526,6 +531,7 @@
   import { TreeNode } from "../../helpers/tree_view/Node"
 
   import Vue from "vue";
+  import {attribute_group_update} from "../../services/attributesService";
 
   export default Vue.extend({
 
@@ -566,6 +572,9 @@
         },
         'schema_id':{
           default: undefined
+        },
+        'active_hotkeys': {
+          default: false
         }
 
       },
@@ -651,7 +660,18 @@
             */
 
           ],
-
+          hotkey_dict: {
+            49: 0,
+            50: 1,
+            51: 2,
+            52: 3,
+            53: 4,
+            54: 5,
+            55: 6,
+            56: 7,
+            57: 8,
+            58: 9
+          },
           name: null,
 
           label_file_list: [],
@@ -662,8 +682,17 @@
 
         }
       },
-
+      beforeDestroy() {
+       this.remove_hotkey_listeners()
+      },
       watch: {
+        active_hotkeys: function(newValue){
+          if(newValue){
+            this.add_hotkey_listeners()
+          } else{
+            this.remove_hotkey_listeners()
+          }
+        },
         search: function(newValue) {
           clearTimeout(this.tree_rerender_timeout)
           this.tree_force_rerender = true
@@ -675,10 +704,12 @@
 
         // not sure if this is right thing to watch
         current_instance() {
+
           this.set_existing_selected()
         },
 
         group() {
+
           // for "resesting" it.
           // we want a newly created group to be different
           // vue js being a bit fiddly here
@@ -705,6 +736,9 @@
           })
 
           this.tree_items = construct_tree(this.tree_items_list)
+        }
+        if(this.active_hotkeys){
+          this.add_hotkey_listeners()
         }
       },
       computed: {
@@ -768,13 +802,40 @@
         }
       },
       methods: {
+        add_hotkey_listeners: function(){
+          window.addEventListener('keyup', this.attribute_keyup_handler);
+          window.addEventListener('keydown', this.attribute_keydown_handler);
+        },
+        remove_hotkey_listeners: function(){
+          window.removeEventListener('keyup', this.attribute_keyup_handler);
+          window.removeEventListener('keydown', this.attribute_keydown_handler);
+        },
+        attribute_keyup_handler: function(){
+          if(!['radio', 'select'].includes(this.group.kind)){
+            return
+          }
+
+        },
+        attribute_keydown_handler: function(event){
+          if(!['radio', 'select'].includes(this.group.kind)){
+            return
+          }
+          let index = this.hotkey_dict[event.keyCode]
+          if(index != undefined){
+            let item_to_select = this.select_format[index]
+            if(item_to_select && item_to_select != this.internal_selected){
+              this.internal_selected = item_to_select
+              this.attribute_change()
+            }
+          }
+        },
         tree_input: function(e) {
           const already_selected = this.internal_selected.includes(e.id)
 
           if (already_selected) {
             const index_to_delete = this.internal_selected.indexOf(e.id);
             this.internal_selected.splice(index_to_delete, 1);
-            
+
             const index_to_delete_name = this.internal_selected_names.indexOf(e.name);
             this.internal_selected_names.splice(index_to_delete_name, 1);
           }
@@ -871,6 +932,7 @@
 
            *
            */
+
           this.$emit('attribute_change', [this.group, this.export_internal_selected])
 
         },
@@ -885,14 +947,13 @@
         },
 
         format_default: function () {
-
           if ([null, "select", "radio"].includes(this.group.kind)) {
             let default_attribute = {}
             default_attribute.id = this.group.default_id
             return default_attribute
           }
           if (this.group.kind == 'multiple_select'){
-            return [this.group.default_id]  // note array formatting, assumed to be single ID for now
+            return [{id:this.group.default_id}]  // note array formatting, assumed to be single ID for now
           }
           if (this.group.kind == 'text'){
             return this.group.default_value
@@ -925,70 +986,30 @@
            * This was really more for the "single select" otherwise can just load from instance right?
            *
            */
-
           // reset
           this.internal_selected = []
+          this.internal_selected_names = []
 
-          if (this.group.kind === 'date') this.internal_selected = ''
+          if (this.group.kind === 'date') {
+            this.internal_selected = ''
+          }
 
           // set existing if applicable
           if (!this.current_instance) {
             return
           }
-
-          // note this is basing off the current instance!
-
-          /*
-           * TYPES: Different types treated differently
-           *
-           *  the values for attribute groups are diverse
-           *  effectively we assume that whatever format it stores the value in is what we will
-           *  reload it as
-           *
-           *  we can't just use ids because of free text fields (like 137 in this example)
-           *
-           *  and the form of the data changes since some things prefer to store in arrays
-           *  some as objects and some as straight ids...
-           *
-           *  the form is determined by the group type
-           *  and then by the front end select controls here
-           *
-           *  the backend stores whatever it is given for these things
-           *
-           *  EXAMPLE:
-             *    136: Object
-                  137: "dog"
-                  138: Array[3]
-                  139: 180
-                  // future maybe a Node
-           */
-
-          /*
-           * Prior we iterated through the whole list but that doesn't really make sense
-           * because we only care about the group id
-           *
-           * IMPORTANT - instance group value != current group
-           *
-           *    this is the current instance data which is different from
-           *    the current group
-           *
-           *    for example the current group may be "apple"
-           *    but there may be no selection for "apple" yet on the specific instance.
-           *
-           */
+          if (!this.current_instance.attribute_groups) {
+            return
+          }
 
           let value = null    // shared with existing and default
           let existing_value = null
           let default_value = null
-
-          if (this.current_instance.attribute_groups) {
+          if (this.current_instance.attribute_groups && this.current_instance.attribute_groups[this.group.id]) {
             existing_value = this.current_instance.attribute_groups[this.group.id]
           }
-          if (existing_value != null){
-            value = existing_value
-          }
-
           else  {
+
             // If not existing value, check for default
             // We must be careful here, we don't want to "reset" to the default value
             // if there was an existing value. We only set default when it's null.
@@ -1000,7 +1021,11 @@
               value = this.format_default()
             }
           }
-
+          // Populate existing value.
+          if ((existing_value != null && this.group.kind != 'multiple_select' )
+            || (this.group.kind === 'multiple_select' && existing_value && existing_value.length > 0)){
+            value = existing_value
+          }
           // Code below is for LOADING VALUES / formatting.
           // At this point we around know the value itself as ( existing_value )
 
@@ -1029,19 +1054,20 @@
             this.internal_selected = value
 
           } else if (this.group.kind == "multiple_select") {
-
-            this.internal_selected = []
+            if(value && value.length > 0){
+              this.internal_selected = []
+            }
             // value is an array now
             for (let single_selected of value) {
               if(!single_selected){
                 return
               }
-              this.internal_selected.push(this.select_format.find(
+              let selected_attr = this.select_format.find(
                 attribute => {
                   return attribute.id == single_selected.id
-                }))
+                })
+              this.internal_selected.push(selected_attr)
             }
-
           }
           else if(this.group.kind === 'slider'){
             if(!this.group.min_value){
@@ -1128,7 +1154,7 @@
           }
 
           // we assume if no labels selected it's ok
-          if (this.label_file_list.length == 0) {
+          if (this.group_internal.label_file_list.length == 0) {
             return true
           }
 
@@ -1140,7 +1166,7 @@
         recieve_label_file: function (label_file_list) {
 
 
-          this.label_file_list = label_file_list
+          this.group_internal.label_file_list = label_file_list
 
           // this feels a bit hacky but at least should work for now...
           if (this.first_load == true) {
@@ -1154,7 +1180,7 @@
         },
 
 
-        api_group_update: function (mode) {
+        api_group_update: async function (mode) {
           this.loading_update = true
           this.error = {}
           this.success = false
@@ -1185,31 +1211,19 @@
               group.min_value = min_value;
             }
           }
-
-          axios.post(
-            '/api/v1/project/' + this.project_string_id +
-            '/attribute/group/update',
-            {
-              group_id: Number(group.id),
-              name: group.name,
-              prompt: group.prompt,
-              label_file_list: this.label_file_list,
-              kind: group.kind,
-              default_id: group.default_id,
-              default_value: group.default_value,
-              min_value: min_value,
-              max_value: max_value,
-              mode: mode,
-              is_global: this.group.is_global
-            }).then(response => {
-
-            //this.group = response.data.group
-
+          group.max_value = max_value;
+          group.min_value = min_value;
+          try{
+            let [data, error] = await attribute_group_update(this.project_string_id, mode, group)
             this.success = true
             this.loading_update = false
-
-            // response.data.log.info
-
+            if(error){
+              if (error.response.status == 400) {
+                this.error = error.response.data.log.error
+              }
+              this.loading_update = false
+              console.error(error)
+            }
 
             // careful mode is local, not this.mode
             if (mode == 'ARCHIVE') {
@@ -1226,18 +1240,13 @@
                 this.group.max_value = 10;
               }
             }
-
-          }).catch(error => {
-
-            if (error) {
-              if (error.response.status == 400) {
-                this.error = error.response.data.log.error
-              }
-              this.loading_update = false
-              console.log(error)
-            }
-          });
-
+          }
+          catch (error){
+            this.loading_update = false
+            console.error(error)
+          } finally {
+            this.loading_update = false
+          }
         }
 
       }

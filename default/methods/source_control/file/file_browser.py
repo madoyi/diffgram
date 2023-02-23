@@ -136,6 +136,10 @@ def view_file_diff(project_string_id, file_id):
               methods = ['GET', 'POST'])
 @Permission_Task.by_task_id(apis_user_list = ["builder_or_trainer"])
 def task_get_annotation_list_api(task_id):
+    spec_list = [{'task_child_file_id': {'type': int, 'required': False}}]
+
+    log, input, untrusted_input = regular_input.master(request = request,
+                                                       spec_list = spec_list)
     with sessionMaker.session_scope() as session:
         task = Task.get_by_id(session = session,
                               task_id = task_id)
@@ -143,8 +147,11 @@ def task_get_annotation_list_api(task_id):
         # TODO Review the function get_annotations_common()
         # which assummes we need to check file permissions still,
         # ie (via project) where as here we don't...
+        file = task.file
+        if input.get('task_child_file_id'):
+            file = File.get_by_id(session = session, file_id = input.get('task_child_file_id'))
 
-        file_serialized = task.file.serialize_with_annotations(session = session)
+        file_serialized = file.serialize_with_annotations(session = session)
 
         return jsonify(success = True,
                        file_serialized = file_serialized), 200
@@ -458,6 +465,7 @@ class File_Browser():
         self.metadata = {}
 
         self.metadata['job_id'] = self.metadata_proposed.get("job_id", None)
+        self.metadata['with_children_files'] = self.metadata_proposed.get("with_children_files", False)
         self.metadata['issues_filter'] = self.metadata_proposed.get("issues_filter", None)
 
         self.metadata['file'] = {}
@@ -677,6 +685,7 @@ class File_Browser():
                 resp = jsonify(log=self.log)
                 resp.status = 401
                 raise Unauthorized(response = resp)
+            print('with_children_files', self.metadata.get('with_children_files'))
             query, count = WorkingDirFileLink.file_list(
                 session = self.session,
                 working_dir_id = self.directory.id,
@@ -696,7 +705,9 @@ class File_Browser():
                 job_id = job_id,
                 has_some_machine_made_instances = has_some_machine_made_instances,
                 ignore_id_list = ignore_id_list,
-                count_before_limit = True
+                count_before_limit = True,
+                include_children_compound = self.metadata['with_children_files']
+
             )
 
             file_count += count

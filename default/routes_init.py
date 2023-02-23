@@ -21,6 +21,8 @@ def do_routes_importing():
     from methods.project.project_update import api_project_update
     from methods.source_control.file.file_update import api_file_update
     from methods.source_control.file.file_get_child_files import api_file_get_child_files
+    from methods.source_control.file.get_file_stats import api_get_file_stats
+    from methods.source_control.file.file_update_metadata import api_file_update_metadata
 
     from methods.project.project_list import project_list_api
 
@@ -139,8 +141,10 @@ def do_routes_importing():
     from methods.annotation.instance_template_update import update_instance_template_api
     from methods.annotation.instance_history import instance_history_api
 
-    from methods.report.report_runner import report_save_api
+    from methods.report.report_save_api import report_save_api
+    from methods.report.report_run_api import report_run_api
     from methods.report.report_list import report_list_api
+    from methods.report.report_view_api import report_view_api
     from methods.userscript.userscript import userscript_new_api
 
     from methods.batch.batch_new import new_input_batch

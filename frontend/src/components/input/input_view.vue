@@ -214,8 +214,7 @@
                   </div>
 
 
-                  <!-- Update log
-                       As of Sept 3 2020 this is just errors
+                  <!-- Update log is Just errors
                        In future could be other updates too
                     -->
                   <button_with_menu
@@ -553,7 +552,7 @@
                     tooltip_message="Raw Instance List & Frame Map"
                     icon="mdi-dump-truck"
                     :icon_style="true"
-                    @click="open_input_payload_dialog(props.item)"
+                    @click="open_input_payload_dialog($event, props.item)"
                     color="primary">
                   </standard_button>
 
@@ -848,13 +847,15 @@ export default Vue.extend({
         }
         this.selected_compound_input = input
         this.$refs.input_compound_dialog.open()
+        this.$refs.input_compound_dialog.request_refresh = new Date()
       },
       open_free_tier_limit_dialog: function (message, details) {
         this.message_free_tier_limit = message
         this.details_free_tier_limit = details
         this.$refs.free_tier_limit_dialog.open()
       },
-      open_input_payload_dialog: function (input) {
+      open_input_payload_dialog: function (event, input) {
+        event.stopPropagation()
         this.selected_input = input;
         this.$refs.payload_dialog.open();
 

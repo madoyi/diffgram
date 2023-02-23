@@ -1,3 +1,5 @@
+import uuid
+
 from methods.regular.regular_api import *
 from methods.video.video import New_video
 
@@ -128,7 +130,7 @@ def start_queue_check_loop(VIDEO_QUEUE, FRAME_QUEUE):
             logger.warning('Rejected Item: processing, data stopped. Waiting for termination...')
             break
 
-        check_and_wait_for_memory(memory_limit_float = 75.0)
+        check_and_wait_for_memory(memory_limit_float = 85.0)
 
         logger.info("[Media Queue Heartbeat]")
         try:
@@ -394,7 +396,7 @@ class Process_Media():
 
         start_time = time.time()
 
-        check_and_wait_for_memory(memory_limit_float = 75.0)
+        check_and_wait_for_memory(memory_limit_float = 85.0)
 
         ### Warm up
         self.get_input_with_retry()
@@ -939,8 +941,13 @@ class Process_Media():
         # From the file directory, get all related jobs.
         # TODO confirm how this works for pre processing case
         # Whitelist for allow types here, otherwise it opens a ton of connections while say processing frames
-        if self.input.media_type not in ['image', 'video', 'sensor_fusion']:
+        if self.input.media_type not in ['image', 'video', 'sensor_fusion', 'text', 'audio', 'geospatial']:
             return
+
+        file = self.input.file
+        if self.input.file.parent_id is not None:
+            # Avoid adding child of a compound file
+            file = File.get_by_id(session = self.session, file_id = self.input.file.parent_id)
 
         directory = self.input.directory
         if directory is None:
@@ -962,7 +969,7 @@ class Process_Media():
             job_sync_dir_manger.create_file_links_for_attached_dirs(
                 sync_only = True,
                 create_tasks = True,
-                file_to_link = self.input.file,
+                file_to_link = file,
                 file_to_link_dataset = self.working_dir,
                 related_input = self.input,
                 member = self.member
@@ -1525,6 +1532,7 @@ class Process_Media():
                 project_id = self.project_id,
                 input_id = self.input.id,
                 file_metadata = self.input.file_metadata,
+                ordinal = self.input.ordinal,
             )
 
             if self.input.status != "failed":
@@ -1581,6 +1589,7 @@ class Process_Media():
                 parent_id = self.input.parent_file_id,
                 text_file_id = self.new_text_file.id,
                 original_filename = self.input.original_filename,
+                ordinal = self.input.ordinal,
                 project_id = self.project_id,
                 input_id = self.input.id,
                 file_metadata = self.input.file_metadata,
@@ -1696,6 +1705,7 @@ class Process_Media():
             connection_id = self.input.connection_id,
             bucket_name = self.input.bucket_name,
             file_metadata = self.input.file_metadata,
+            ordinal = self.input.ordinal,
 
         )
         return self.input.file
@@ -1732,9 +1742,13 @@ class Process_Media():
         result = self.read_raw_file()
         if result is False:
             return False
+        if settings.DIFFGRAM_SYSTEM_MODE == 'testing_e2e':
+            self.new_image.url_signed_blob_path = settings.PROJECT_IMAGES_BASE_DIR + \
+                                                  str(self.project_id) + "/" + str(uuid.uuid4()) + "/" + str(self.new_image.id)
 
-        self.new_image.url_signed_blob_path = settings.PROJECT_IMAGES_BASE_DIR + \
-                                              str(self.project_id) + "/" + str(self.new_image.id)
+        else:
+            self.new_image.url_signed_blob_path = settings.PROJECT_IMAGES_BASE_DIR + \
+                                                  str(self.project_id) + "/" + str(self.new_image.id)
 
         self.try_to_commit()
 
@@ -1992,8 +2006,8 @@ class Process_Media():
         logger.info(f"Saved Tokens on: {self.new_text_file.tokens_url_signed_blob_path}")
 
     def save_raw_audio_file(self):
-        offset = 2592000
-        self.new_audio_file.url_signed_expiry = int(time.time() + offset)  # 1 month
+        new_offset_in_seconds = settings.SIGNED_URL_CACHE_NEW_OFFSET_SECONDS_VALID
+        self.new_audio_file.url_signed_expiry = int(new_offset_in_seconds)  # 1 month
 
         self.new_audio_file.url_signed_blob_path = '{}{}/{}'.format(settings.PROJECT_TEXT_FILES_BASE_DIR,
                                                                     str(self.project_id),
@@ -2009,11 +2023,11 @@ class Process_Media():
         )
 
         self.new_audio_file.url_signed = data_tools.build_secure_url(self.new_audio_file.url_signed_blob_path,
-                                                                     offset)
+                                                                     new_offset_in_seconds)
 
     def save_raw_text_file(self):
-        offset = 2592000
-        self.new_text_file.url_signed_expiry = int(time.time() + offset)  # 1 month
+        new_offset_in_seconds = settings.SIGNED_URL_CACHE_NEW_OFFSET_SECONDS_VALID
+        self.new_text_file.url_signed_expiry = int(new_offset_in_seconds)
 
         self.new_text_file.url_signed_blob_path = '{}{}/{}'.format(settings.PROJECT_TEXT_FILES_BASE_DIR,
                                                                    str(self.project_id),
@@ -2029,7 +2043,7 @@ class Process_Media():
         )
 
         self.new_text_file.url_signed = data_tools.build_secure_url(self.new_text_file.url_signed_blob_path,
-                                                                    offset)
+                                                                    new_offset_in_seconds)
 
         # Now Save Tokens
 

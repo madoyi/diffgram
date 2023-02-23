@@ -72,11 +72,11 @@ export default {
     }
   },
   components: {
-    global_dataset_selector
+    global_dataset_selector,
+    directory_selector
   },
   methods: {
     on_task_template_changed: function(tt){
-      console.log('change',tt)
       this.action.config_data.task_template_id = tt.id
     },
     on_change_directory: function(dir){
@@ -109,9 +109,6 @@ export default {
       ],
       kind_list: ["Annotations"],
     }
-  },
-  components: {
-    directory_list: directory_selector
   },
   computed:{
     on_directories_updated: function(){
